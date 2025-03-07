@@ -16,6 +16,6 @@ Create telegram bot from [BotFather]('https://t.me/BotFather'). Get your token a
 npm run dev
 ```
 ### ❗️ Important notes:
-create data.db empty file (just in case) <br>
+create data.db in function folder (just in case) <br>
 don't delete downloads folder it's gonna be empty <br>
 You can show data using [sqlite browser]('https://sqlitebrowser.org/dl/')
