@@ -24,7 +24,8 @@ function getExistingVideo(link) {
                 filename TEXT NOT NULL,
                 fileid TEXT NOT NULL,
                 chatid NUMBER NOT NULL,
-                link TEXT NOT NULL
+                link TEXT NOT NULL,
+                title TEXT NOT NULL
             )`, (err) => {
                 if (err) {
                     console.error('Error creating table:', err);
@@ -34,7 +35,7 @@ function getExistingVideo(link) {
                 }
 
                 // Now query the table
-                db.get('SELECT fileid FROM history WHERE link = ?', [link], (err, row) => {
+                db.get('SELECT fileid,title FROM history WHERE link = ?', [link], (err, row) => {
                     if (err) {
                         console.error('Error checking existing video:', err);
                         db.close();
@@ -43,14 +44,14 @@ function getExistingVideo(link) {
                     }
 
                     db.close();
-                    resolve(row ? row.fileid : null);
+                    resolve(row ? {fileid:row.fileid,title:row.title} : null);
                 });
             });
         });
     });
 }
 
-function writeData(datetime, fileSize, filename, fileid, chatid, link) {
+function writeData(datetime, fileSize, filename, fileid, chatid, link,title) {
     return new Promise((resolve, reject) => {
         const db = new sqlite3.Database(dbPath, (err) => {
             if (err) {
@@ -66,7 +67,8 @@ function writeData(datetime, fileSize, filename, fileid, chatid, link) {
                 filename TEXT NOT NULL,
                 fileid TEXT NOT NULL,
                 chatid NUMBER NOT NULL,
-                link TEXT NOT NULL
+                link TEXT NOT NULL,
+                title TEXT NOT NULL
             )`, (err) => {
                 if (err) {
                     console.error('Error creating table:', err);
@@ -75,9 +77,9 @@ function writeData(datetime, fileSize, filename, fileid, chatid, link) {
                     return;
                 }
 
-                db.run(`INSERT INTO history(datetime, fileSize, filename, fileid, chatid, link) 
-                    VALUES(?, ?, ?, ?, ?, ?)`, 
-                    [datetime, fileSize, filename, fileid, chatid, link],
+                db.run(`INSERT INTO history(datetime, fileSize, filename, fileid, chatid, link,title) 
+                    VALUES(?, ?, ?, ?, ?, ?,?)`, 
+                    [datetime, fileSize, filename, fileid, chatid, link,title],
                     (err) => {
                         if (err) {
                             console.error('Error inserting data:', err);
