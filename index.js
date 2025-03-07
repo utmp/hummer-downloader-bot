@@ -1,6 +1,6 @@
 const TelegramBot = require('node-telegram-bot-api');
 const { exec } = require('child_process');
-const {checkFileSize,isValidUrl} = require('./functions/check');
+const {checkFileSize,isValidUrl,getTitle} = require('./functions/check');
 const { writeData,writeUsersInfo,getExistingVideo } = require('./functions/db');
 require('dotenv').config();
 const path = require('path')
@@ -47,13 +47,13 @@ bot.on('message', async (msg) => {
     const chatId = msg.chat.id;
     const messageText = msg.text;
     if (messageText?.startsWith('/')) return;
-
+    (!isValidUrl(messageText)) ? bot.sendMessage(chatId,'send me a link'):"";
     if (messageText && isValidUrl(messageText)) {
         try {
-            const existingFileId = await getExistingVideo(messageText);
-            if (existingFileId) {
-                await bot.sendVideo(chatId, existingFileId, {
-                    caption: '✅Downloaded via @HummerDownloaderBot'
+            const existingFile = await getExistingVideo(messageText);
+            if (existingFile) {
+                await bot.sendVideo(chatId, existingFile.fileid,{
+                    caption: `${existingFile.title}\n✅Downloaded via @HummerDownloaderBot`
                 });
                 return;
             }
@@ -85,8 +85,13 @@ bot.on('message', async (msg) => {
                     }
 
                     const fullPath = path.join(__dirname, 'downloads', videoFile);
+                    let title=''
+                    await getTitle(messageText).then((res,rej)=>{
+                        if(rej){ console.log(rej)}
+                        title = res;
+                    })
                     const sendV = await bot.sendVideo(chatId, fullPath, {
-                        caption: '✅Downloaded via @HummerDownloaderBot'
+                        caption: `${title}\n✅Downloaded via @HummerDownloaderBot`
                     });
                     const file_id = sendV.video?.file_id || sendV.document?.file_id;
                     // Write data to database
@@ -96,7 +101,8 @@ bot.on('message', async (msg) => {
                         fullPath,
                         file_id,
                         chatId,
-                        messageText
+                        messageText,
+                        title
                     );
                     fs.unlinkSync(fullPath);
                     bot.deleteMessage(chatId, process.message_id);

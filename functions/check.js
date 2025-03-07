@@ -31,5 +31,21 @@ function isValidUrl(string) {
         return false;
     }
 }
-
-module.exports = {isValidUrl,checkFileSize}
+function getTitle(url){
+    return new Promise((res,rej)=>{
+        const command = `yt-dlp --get-title ${url}`;
+        exec(command,(err,stdout,stderr)=>{
+            if(err){
+                rej(err);
+                return;
+            }
+            else if(stderr){
+                rej(stderr);
+                return;
+            }
+            const title = stdout;
+            res(title);
+        })
+    })
+}
+module.exports = {isValidUrl,checkFileSize,getTitle}
