@@ -1,5 +1,4 @@
 ## Hummer Downloader Telegram Bot Service
-### Reusable project for frontend devs (***pre-configured***).
 
 ### Clone 
 ``` 
