@@ -10,8 +10,12 @@ npm install
 ```
 ### Configuring
 Create telegram bot from [BotFather]('https://t.me/BotFather'). Get your token and then create .env file in root directory.
- Take a look .envExample
+<br> Take a look .envExample
 ### Run 
 ```
 npm run dev
 ```
+### ❗️ Important notes:
+create data.db empty file (just in case) <br>
+don't delete downloads folder it's gonna be empty <br>
+You can show data using [sqlite browser]('https://sqlitebrowser.org/dl/')
