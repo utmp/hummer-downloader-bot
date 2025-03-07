@@ -1,7 +1,7 @@
 const TelegramBot = require('node-telegram-bot-api');
 const { exec } = require('child_process');
-const {checkFileSize,isValidUrl} = require('./check');
-const { writeData,writeUsersInfo,getExistingVideo } = require('./db');
+const {checkFileSize,isValidUrl} = require('./functions/check');
+const { writeData,writeUsersInfo,getExistingVideo } = require('./functions/db');
 require('dotenv').config();
 const path = require('path')
 const fs = require('fs')
