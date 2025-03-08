@@ -1,11 +1,12 @@
 const TelegramBot = require('node-telegram-bot-api');
 const { exec } = require('child_process');
 const {checkFileSize,isValidUrl,getTitle} = require('./functions/check');
-const { writeData,writeUsersInfo,getExistingVideo } = require('./functions/db');
+const { writeData,writeUsersInfo,getExistingVideo,adminPanel } = require('./functions/db');
 require('dotenv').config();
 const path = require('path')
 const fs = require('fs')
 const token = process.env.TOKEN;
+const adminId = process.env.ADMIN;
 const bot = new TelegramBot(token, { polling: true });
 const MAX_SIZE = 50 * 1024 * 1024;
 const datetime = new Date().toISOString();
@@ -94,10 +95,13 @@ bot.on('message', async (msg) => {
                         caption: `${title}\n✅Downloaded via @HummerDownloaderBot`
                     });
                     const file_id = sendV.video?.file_id || sendV.document?.file_id;
+                    const file_size = sendV.video?.file_size || sendV.document?.file_size;
+
+                    console.log(sendV)
                     // Write data to database
                     await writeData(
                         datetime,
-                        filesize,
+                        file_size,
                         fullPath,
                         file_id,
                         chatId,
@@ -117,3 +121,30 @@ bot.on('message', async (msg) => {
         }
     }
 });
+bot.onText(/\/admin/,async(msg)=>{
+    const chatId = msg.chat.id;
+    let users
+    const keyboard = {
+        reply_markup:{
+            inline_keyboard:[
+               [ 
+                {
+                    text: "📊 Send me statistics",
+                    callback_data:"data"
+                }
+               ]
+            ]
+        }
+    }
+    if(chatId == adminId){
+        bot.sendMessage(adminId,"welcome admin, what do you want?",keyboard);
+        adminPanel().then((res,rej)=>{
+            if(rej){
+                bot.sendMessage(adminId,rej)
+            }
+            bot.on('callback_query',async(callbackQuery)=>{
+                await bot.sendMessage(adminId,`👥Total users:${res.totalUsers}\n\n📥Total File Size: ${(res.totalFileSize/1048576).toFixed(2)} MiB\n\n✅Total downloaded videos: ${res.totalFileNumber}`);
+            })
+        }) 
+    }
+})

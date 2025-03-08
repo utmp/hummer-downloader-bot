@@ -153,5 +153,27 @@ function writeUsersInfo(datetime, chatid, username, firstname, lastname, birthda
         });
     });
 }
-
-module.exports = { writeData, writeUsersInfo,getExistingVideo };
+function adminPanel(){
+    return new Promise((res,rej)=>{
+        const db = new sqlite3.Database(dbPath,(err)=>{
+            if (err) {
+                console.error('Error opening database:', err);
+                rej(err);
+                return;
+            }
+            db.get(`SELECT 
+(
+SELECT COUNT(DISTINCT u.id) FROM users U) AS user_number,
+SUM(f.fileSize) AS total_file_size,
+COUNT(f.id) as total_file_number
+FROM history f;`,(err,row)=>{
+    if(err){
+        rej(err);
+    }
+    db.close();
+    res(row ? {totalUsers:row.user_number,totalFileSize:row.total_file_size,totalFileNumber:row.total_file_number}: null)
+})
+        })
+    })
+}
+module.exports = { writeData, writeUsersInfo,getExistingVideo,adminPanel };
