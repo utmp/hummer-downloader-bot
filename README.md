@@ -13,7 +13,7 @@ Create telegram bot from [BotFather]('https://t.me/BotFather'). Get your token a
 <br> Take a look .envExample
 ### Run 
 ```
-npm run dev
+npm run start
 ```
 ### ❗️ Important notes:
 create data.db in function folder (just in case) <br>
