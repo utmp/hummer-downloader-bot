@@ -1,2 +1,3 @@
 TOKEN="your-telegram-bot-token"
 ADMIN="your-telegram-account-id"
+URL="local-telegram-server-url"

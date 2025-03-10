@@ -11,10 +11,33 @@ require("dotenv").config();
 const path = require("path");
 const fs = require("fs");
 const { message } = require("telegraf/filters");
-const { token, url, admin } = process.env;
-const bot = new Telegraf(token, {
+const { TOKEN,URL,ADMIN } = process.env;
+const startText = `
+*🎥 Hummer Video Downloader*
+Send me any video link from supported platforms and I'll download it for you!
+
+*Supported Platforms:*
+• YouTube
+• Instagram
+• TikTok
+• Twitter
+• Facebook
+... and [more](https://raw.githubusercontent.com/yt-dlp/yt-dlp/refs/heads/master/supportedsites.md)
+
+*Commands:*
+/start - Start the bot
+/help - Show this help message
+
+*Usage:*
+1. Just send me a video link
+2. Wait for the download
+3. Get your video!
+
+*Note:* Maximum file size is 2GB
+`;
+const bot = new Telegraf(TOKEN, {
   telegram: {
-    apiRoot: url,
+    apiRoot: URL,
   },
 });
 const MAX_SIZE = 2000 * 1024 * 1024; // replace 2000 (2GiB) <-> 50(MiB) if bot works with polling;
@@ -49,21 +72,24 @@ bot.start(async (ctx) => {
       birthdateNumber,
       bio
     );
-    ctx.reply(isNewUser ? `Welcome ${username}` : `Welcome back ${username}`);
+    ctx.reply(startText,{
+      parse_mode:'Markdown'
+    });
   } catch (err) {
     console.error("Error handling user:", err);
   }
 });
 
 bot.help((ctx) => {
-  ctx.reply("hi how can I help you?", {
+  ctx.reply(startText, {
+    parse_mode:'Markdown',
     reply_to_message_id: ctx.message.message_id,
   });
 });
 bot.command("admin", async (ctx) => {
   const chatId = ctx.from.id;
 
-  if (chatId.toString() !== admin) {
+  if (chatId.toString() !== ADMIN) {
     return ctx.reply("You are not authorized to use this command.");
   }
 
@@ -92,7 +118,7 @@ bot.on("callback_query", async (ctx) => {
   const chatId = ctx.from.id;
   const data = ctx.callbackQuery.data;
 
-  if (chatId.toString() !== admin) {
+  if (chatId.toString() !== ADMIN) {
     return ctx.reply("🚫Not authorized");
   }
 
@@ -207,6 +233,8 @@ bot.on(message, async (ctx) => {
   }
 });
 
-bot.launch();
+bot.launch({
+  dropPendingUpdates:true,
+});
 process.once("SIGINT", () => bot.stop("SIGINT"));
 process.once("SIGTERM", () => bot.stop("SIGTERM"));
