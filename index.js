@@ -10,31 +10,38 @@ const {
 require("dotenv").config();
 const path = require("path");
 const fs = require("fs");
+const yaml = require("js-yaml");
 const { message } = require("telegraf/filters");
 const { TOKEN,URL,ADMIN } = process.env;
-const startText = `
-*🎥 Hummer Video Downloader*
-Send me any video link from supported platforms and I'll download it for you!
+const lang_keyboard = {
+  reply_markup: {
+    inline_keyboard: [
+      [
+        {
+          text: "🇺🇸 English",
+          callback_data: "set_lang_en",
+        },
+        {
+          text: "🇹🇷 Turkçe",
+          callback_data: "set_lang_tr",
+        },
+        {
+          text: "🇷🇺 Russian",
+          callback_data: "set_lang_ru"
+        }
+      ],
+    ],
+  },
+};
+const translations = {
+  en: yaml.load(fs.readFileSync("./locales/en.yaml", "utf8")),
+  tr: yaml.load(fs.readFileSync("./locales/tr.yaml", "utf8")),
+  ru: yaml.load(fs.readFileSync("./locales/ru.yaml", "utf8")),
+};
+// default lang
+let userLanguage = "en";
+const t = (key) => translations[userLanguage][key] || key;
 
-*Supported Platforms:*
-• YouTube
-• Instagram
-• TikTok
-• Twitter
-• Facebook
-... and [more](https://raw.githubusercontent.com/yt-dlp/yt-dlp/refs/heads/master/supportedsites.md)
-
-*Commands:*
-/start - Start the bot
-/help - Show this help message
-
-*Usage:*
-1. Just send me a video link
-2. Wait for the download
-3. Get your video!
-
-*Note:* Maximum file size is 2GB
-`;
 const bot = new Telegraf(TOKEN, {
   telegram: {
     apiRoot: URL,
@@ -72,25 +79,20 @@ bot.start(async (ctx) => {
       birthdateNumber,
       bio
     );
-    ctx.reply(startText,{
-      parse_mode:'Markdown'
-    });
+    ctx.reply(t("startText"),lang_keyboard);
   } catch (err) {
     console.error("Error handling user:", err);
   }
 });
 
 bot.help((ctx) => {
-  ctx.reply(startText, {
-    parse_mode:'Markdown',
-    reply_to_message_id: ctx.message.message_id,
-  });
+  ctx.reply(t("helpText"));
 });
 bot.command("admin", async (ctx) => {
   const chatId = ctx.from.id;
 
   if (chatId.toString() !== ADMIN) {
-    return ctx.reply("You are not authorized to use this command.");
+    return ctx.reply(t("notAuthorized"));
   }
 
   const keyboard = {
@@ -110,16 +112,24 @@ bot.command("admin", async (ctx) => {
     },
   };
 
-  await ctx.reply("Welcome admin, what do you want?", keyboard);
+  await ctx.reply(t("adminWelcome"), keyboard);
 });
-
+//handle lang selection
+bot.on("callback_query",async(ctx)=>{
+  const data = ctx.callbackQuery.data;
+  if(data.startsWith("set_lang_")){
+    const lang = data.split("_")[2];
+    userLanguage = lang;
+    await ctx.reply(`${t("languageSetTo")}`);
+  }
+})
 // Handle callback queries
 bot.on("callback_query", async (ctx) => {
   const chatId = ctx.from.id;
   const data = ctx.callbackQuery.data;
 
   if (chatId.toString() !== ADMIN) {
-    return ctx.reply("🚫Not authorized");
+    return ctx.reply(t("notAuthorized"));
   }
 
   if (data === "get_stats") {
@@ -153,22 +163,22 @@ bot.on(message, async (ctx) => {
   const msgText = ctx.message.text;
   if (msgText?.startsWith("/")) return;
   if (!isValidUrl(msgText)) {
-    ctx.reply("send me a link", {});
+    ctx.reply(t("sendLink"), {});
   }
   if (msgText && isValidUrl(msgText)) {
     try {
       const existingFile = await getExistingVideo(msgText);
       if (existingFile) {
         await ctx.replyWithVideo(existingFile.fileid, {
-          caption: `${existingFile.title}\n✅Downloaded via @HummerDownloaderBot`,
+          caption: `${existingFile.title}\n${t("captionMsg")}`,
           reply_to_message_id: ctx.message.message_id,
         });
         return;
       }
       const { filesize, fileId } = await checkFileSize(msgText);
-
+      console.log(`filesize: ${filesize},id:${fileId}`);
       if (filesize > MAX_SIZE) {
-        ctx.reply("Video is too large (over 2GiB). Cannot download.");
+        ctx.reply(t("videoTooLarge"));
         return;
       }
       const process = await ctx.reply("⌛️");
@@ -178,7 +188,7 @@ bot.on(message, async (ctx) => {
         `yt-dlp -o "${downloadPath}.%(ext)s" ${msgText}`,
         async (err, stdout, stderr) => {
           if (err) {
-            ctx.reply("Error downloading video");
+            ctx.reply(t("errorDownloading"));
             return;
           }
 
@@ -187,7 +197,7 @@ bot.on(message, async (ctx) => {
             const videoFile = files.find((file) => file.startsWith(fileId));
 
             if (!videoFile) {
-              ctx.reply("Error: Downloaded file not found");
+              ctx.reply(t("errFileNotFound"));
               return;
             }
 
@@ -201,7 +211,7 @@ bot.on(message, async (ctx) => {
             });
             const videoInput = Input.fromLocalFile(fullPath);
             const sendV = await ctx.replyWithVideo(videoInput, {
-              caption: `${title}\n✅Downloaded via @HummerDownloaderBot`,
+              caption: `${title}\n${t("captionMsg")}`,
               reply_to_message_id: ctx.message.message_id,
             });
             const file_id = sendV.video?.file_id || sendV.document?.file_id;
@@ -220,13 +230,13 @@ bot.on(message, async (ctx) => {
             fs.unlinkSync(fullPath);
             await ctx.deleteMessage(process.message_id);
           } catch (error) {
-            ctx.reply("Error sending video");
+            ctx.reply(t("errorSending"));
             console.error("Send video error:", error);
           }
         }
       );
     } catch (error) {
-      ctx.reply("Error processing your request. Try later", {
+      ctx.reply(t("errorProcessing"), {
         reply_to_message_id: ctx.message.message_id,
       });
     }
