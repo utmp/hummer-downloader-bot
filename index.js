@@ -41,6 +41,7 @@ const lang_keyboard = {
     ],
   },
 };
+
 const translations = {
   en: yaml.load(fs.readFileSync("./locales/en.yaml", "utf8")),
   tr: yaml.load(fs.readFileSync("./locales/tr.yaml", "utf8")),
@@ -124,6 +125,18 @@ bot.command("admin", async (ctx) => {
   await ctx.reply(t("adminWelcome"), keyboard);
 });
 let formatUrl;
+const reportButton = {
+  reply_markup: {
+    inline_keyboard: [
+      [
+        {
+          text: `🕵️‍♂️ ${t("reportToAdmin")}`,
+          callback_data: "report",
+        },
+      ],
+    ],
+  },
+}
 bot.command("format", async (ctx) => {
     const msgText = ctx.message.text.split(" ")[1]; 
     formatUrl = msgText;
@@ -135,7 +148,7 @@ bot.command("format", async (ctx) => {
         const formats = await selectFormat(msgText); 
 
         if (!formats || formats.length === 0) {
-            return ctx.reply(t("noFormatsAvailable"));
+            return ctx.reply(t("noFormatsAvailable"),reportButton);
         }
 
         const inlineKeyboard = formats.map((format) => [
@@ -152,7 +165,7 @@ bot.command("format", async (ctx) => {
         });
     } catch (error) {
         console.error("Error fetching formats:", error);
-        ctx.reply(t("errorFetchingFormats"));
+        ctx.reply(t("errorFetchingFormats"),reportButton);
     }
 });
 
@@ -199,6 +212,7 @@ bot.on("callback_query",async(ctx)=>{
     const formatId = data.split("_")[1];
     const chatId = ctx.from.id;
     try {
+      await ctx.deleteMessage(ctx.callbackQuery.message.message_id);
       const process = await ctx.reply("⌛️");
       const downloadPath = `downloads/${chatId}_${formatId}`;
 
@@ -207,7 +221,7 @@ bot.on("callback_query",async(ctx)=>{
         async (err, stdout, stderr) => {
           if (err) {
             console.error("Error downloading video:", err);
-            ctx.reply(t("errorDownloading"));
+            ctx.reply(t("errorDownloading"),reportButton);
             return;
           }
 
@@ -216,7 +230,7 @@ bot.on("callback_query",async(ctx)=>{
             const videoFile = files.find((file) => file.startsWith(`${chatId}_${formatId}`));
 
             if (!videoFile) {
-              ctx.reply(t("errFileNotFound"));
+              ctx.reply(t("errFileNotFound"),reportButton);
               return;
             }
 
@@ -224,24 +238,47 @@ bot.on("callback_query",async(ctx)=>{
             const videoInput = Input.fromLocalFile(fullPath);
             const sendV = await ctx.replyWithVideo(videoInput, {
               caption: t("captionMsg"),
-              reply_to_message_id: ctx.callbackQuery.message.message_id,
             });
 
             fs.unlinkSync(fullPath);
             await ctx.deleteMessage(process.message_id);
           } catch (error) {
             console.error("Error sending video:", error);
-            ctx.reply(t("errorSending"));
+            ctx.reply(t("errorSending"),reportButton);
           }
         }
       );
     } catch (error) {
       console.error("Error processing format selection:", error);
-      ctx.reply(t("errorProcessing"));
+      ctx.reply(t("errorProcessing"),reportButton);
     }
     return;
 
   }
+   // handle reporting msg 
+ if(data === "report"){
+  try {
+    const chatId = ctx.from.id;
+    const username = ctx.from.username || ctx.from.first_name || "Unknown User";
+    const reportedUrl = formatUrl || "No URL provided";
+
+    // Send report to admin
+    await ctx.telegram.sendMessage(
+      ADMIN,
+      `🚨 *Report Received*\n\n` +
+        `👤 *User*: @${username}\n` +
+        `🔗 *URL*: ${reportedUrl}`,
+      { parse_mode: "Markdown" }
+    );
+
+    // Send alert popup to the user
+    await ctx.answerCbQuery(t("reportSent"), { show_alert: true });
+  } catch (error) {
+    console.error("Error sending report:", error);
+    await ctx.answerCbQuery(t("errorSendingReport"), { show_alert: true });
+  }
+  return;
+ }
 })
 
 bot.on(message, async (ctx) => {
@@ -274,7 +311,7 @@ bot.on(message, async (ctx) => {
         `yt-dlp -o "${downloadPath}.%(ext)s" ${msgText}`,
         async (err, stdout, stderr) => {
           if (err) {
-            ctx.reply(t("errorDownloading"));
+            ctx.reply(t("errorDownloading"),reportButton);
             return;
           }
 
@@ -283,7 +320,7 @@ bot.on(message, async (ctx) => {
             const videoFile = files.find((file) => file.startsWith(fileId));
 
             if (!videoFile) {
-              ctx.reply(t("errFileNotFound"));
+              ctx.reply(t("errFileNotFound"),reportButton);
               return;
             }
 
@@ -316,7 +353,7 @@ bot.on(message, async (ctx) => {
             fs.unlinkSync(fullPath);
             await ctx.deleteMessage(process.message_id);
           } catch (error) {
-            ctx.reply(t("errorSending"));
+            ctx.reply(t("errorSending"),reportButton);
             console.error("Send video error:", error);
           }
         }
@@ -324,7 +361,7 @@ bot.on(message, async (ctx) => {
     } catch (error) {
       ctx.reply(t("errorProcessing"), {
         reply_to_message_id: ctx.message.message_id,
-      });
+      },reportButton);
     }
   }
 });
