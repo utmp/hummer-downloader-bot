@@ -223,7 +223,7 @@ bot.on("callback_query",async(ctx)=>{
             const fullPath = path.join(__dirname, "downloads", videoFile);
             const videoInput = Input.fromLocalFile(fullPath);
             const sendV = await ctx.replyWithVideo(videoInput, {
-              caption: t("videoSent"),
+              caption: t("captionMsg"),
               reply_to_message_id: ctx.callbackQuery.message.message_id,
             });
 
