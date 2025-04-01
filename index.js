@@ -32,6 +32,10 @@ const lang_keyboard = {
         {
           text: "🇷🇺 Russian",
           callback_data: "set_lang_ru"
+        },
+        {
+          text: "🇺🇿 O'zbekcha",
+          callback_data: "set_lang_uz"
         }
       ],
     ],
@@ -41,6 +45,7 @@ const translations = {
   en: yaml.load(fs.readFileSync("./locales/en.yaml", "utf8")),
   tr: yaml.load(fs.readFileSync("./locales/tr.yaml", "utf8")),
   ru: yaml.load(fs.readFileSync("./locales/ru.yaml", "utf8")),
+  uz: yaml.load(fs.readFileSync("./locales/uz.yaml","utf8"))
 };
 // default lang
 let userLanguage = "en";
