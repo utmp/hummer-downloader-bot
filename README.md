@@ -6,14 +6,14 @@ git clone https://github.com/utmp/hummer-downloader-bot.git
 ```
 ### Intall
 ```
-npm install
+pnpm install
 ```
 ### Configuring
 Create telegram bot from [BotFather]('https://t.me/BotFather'). Get your token and then create .env file in root directory.
 <br> Take a look .envExample
 ### Run 
 ```
-npm run start
+pnpm run start
 ```
 ### ❗️ Important notes:
 create data.db in function folder (just in case) <br>
