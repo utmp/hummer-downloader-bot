@@ -1,6 +1,10 @@
 const { Telegraf, Input } = require("telegraf");
 const { exec } = require("child_process");
-const { checkFileSize, isValidUrl, getTitle } = require("./functions/check");
+const { 
+  checkFileSize,
+  isValidUrl,
+  getTitle,
+  selectFormat } = require("./functions/check");
 const {
   writeData,
   writeUsersInfo,
@@ -114,20 +118,52 @@ bot.command("admin", async (ctx) => {
 
   await ctx.reply(t("adminWelcome"), keyboard);
 });
-//handle lang selection
+let formatUrl;
+bot.command("format", async (ctx) => {
+    const msgText = ctx.message.text.split(" ")[1]; 
+    formatUrl = msgText;
+    if (!msgText || !isValidUrl(msgText)) {
+        return ctx.reply(t("notAValidUrl")); 
+    }
+
+    try {
+        const formats = await selectFormat(msgText); 
+
+        if (!formats || formats.length === 0) {
+            return ctx.reply(t("noFormatsAvailable"));
+        }
+
+        const inlineKeyboard = formats.map((format) => [
+            {
+                text: `${format.resolution} (${format.filesize || t("unknownSize")},${format.fps}fps)`,
+                callback_data: `format_${format.id}`,
+            },
+        ]);
+
+        await ctx.reply(t("chooseFormat"), {
+            reply_markup: {
+                inline_keyboard: inlineKeyboard,
+            },
+        });
+    } catch (error) {
+        console.error("Error fetching formats:", error);
+        ctx.reply(t("errorFetchingFormats"));
+    }
+});
+
 bot.on("callback_query",async(ctx)=>{
   const data = ctx.callbackQuery.data;
+  
+  //handle lang selection
   if(data.startsWith("set_lang_")){
     const lang = data.split("_")[2];
     userLanguage = lang;
     await ctx.reply(`${t("languageSetTo")}`);
+    return;
   }
-})
-// Handle callback queries
-bot.on("callback_query", async (ctx) => {
-  const chatId = ctx.from.id;
-  const data = ctx.callbackQuery.data;
 
+  //handle admin actions
+  const chatId = ctx.from.id;
   if (chatId.toString() !== ADMIN) {
     return ctx.reply(t("notAuthorized"));
   }
@@ -149,14 +185,59 @@ bot.on("callback_query", async (ctx) => {
       await ctx.reply("Error fetching statistics");
       await ctx.answerCallbackQuery("Error");
     }
+    return;
   }
-  if (data === "send_dbFile") {
-    // telegram can't send .db files I will touch it later
-    // ctx.replyWithDocument(
-    //     Input.fromReadableStream(fs.createReadStream("./functions/data.db"))
-    // )
+
+
+  //handle format selection
+  if(data.startsWith("format_")){
+    const formatId = data.split("_")[1];
+    const chatId = ctx.from.id;
+    try {
+      const process = await ctx.reply("⌛️");
+      const downloadPath = `downloads/${chatId}_${formatId}`;
+
+      exec(
+        `yt-dlp -f ${formatId}+ba -o "${downloadPath}.%(ext)s" ${formatUrl}`,
+        async (err, stdout, stderr) => {
+          if (err) {
+            console.error("Error downloading video:", err);
+            ctx.reply(t("errorDownloading"));
+            return;
+          }
+
+          try {
+            const files = fs.readdirSync("downloads");
+            const videoFile = files.find((file) => file.startsWith(`${chatId}_${formatId}`));
+
+            if (!videoFile) {
+              ctx.reply(t("errFileNotFound"));
+              return;
+            }
+
+            const fullPath = path.join(__dirname, "downloads", videoFile);
+            const videoInput = Input.fromLocalFile(fullPath);
+            const sendV = await ctx.replyWithVideo(videoInput, {
+              caption: t("videoSent"),
+              reply_to_message_id: ctx.callbackQuery.message.message_id,
+            });
+
+            fs.unlinkSync(fullPath);
+            await ctx.deleteMessage(process.message_id);
+          } catch (error) {
+            console.error("Error sending video:", error);
+            ctx.reply(t("errorSending"));
+          }
+        }
+      );
+    } catch (error) {
+      console.error("Error processing format selection:", error);
+      ctx.reply(t("errorProcessing"));
+    }
+    return;
+
   }
-});
+})
 
 bot.on(message, async (ctx) => {
   const chatId = ctx.from.id;
